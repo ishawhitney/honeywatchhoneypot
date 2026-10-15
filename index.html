@@ -1,0 +1,700 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HoneyWatch simulated honeypot security monitoring dashboard">
+
+    <title>HoneyWatch | Security Monitoring</title>
+
+    <link rel="stylesheet" href="style.css">
+
+    <!-- Layout and alignment corrections -->
+    <style>
+        .topbar {
+            flex-wrap: wrap;
+            gap: 18px;
+        }
+
+        .topbar-title {
+            min-width: 220px;
+        }
+
+        .topbar-actions {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            flex-wrap: wrap;
+            gap: 9px;
+        }
+
+        .refresh-button,
+        .detect-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            line-height: 1.2;
+            white-space: nowrap;
+        }
+
+        .stat-grid,
+        .dashboard-grid,
+        .service-grid,
+        .rule-grid {
+            align-items: stretch;
+        }
+
+        .stat-card,
+        .panel,
+        .service-card,
+        .rule-card {
+            min-width: 0;
+        }
+
+        /* Fix the ONLINE label without applying sidebar styling */
+        .status-large {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .status-large .system-status-label {
+            display: inline;
+            margin: 0;
+            padding: 0;
+            color: var(--green);
+            background: none;
+            border: 0;
+            font-family: var(--display);
+            font-size: 19px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        /* Keep the threat score circle centered */
+        .threat-panel {
+            display: flex;
+            flex-direction: column;
+            align-items: stretch;
+        }
+
+        .threat-panel .panel-header {
+            width: 100%;
+        }
+
+        .threat-ring {
+            align-self: center;
+            margin: 20px auto;
+        }
+
+        .threat-label,
+        .threat-description {
+            align-self: center;
+            text-align: center;
+        }
+
+        /* Consistent incident action buttons */
+        .incident-action-button {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 32px;
+            margin: 3px 5px 3px 0;
+            padding: 7px 12px;
+            border-radius: 7px;
+            font-family: var(--ui);
+            font-size: 10px;
+            font-weight: 600;
+            white-space: nowrap;
+        }
+
+        .incident-action-button[data-investigate-id] {
+            color: var(--gold-bright);
+            background: rgba(244, 197, 66, 0.08);
+            border: 1px solid rgba(244, 197, 66, 0.25);
+        }
+
+        .incident-action-button[data-close-incident-id] {
+            color: #ff789c;
+            background: rgba(255, 85, 125, 0.08);
+            border: 1px solid rgba(255, 85, 125, 0.28);
+        }
+
+        .incident-action-button[data-investigate-id]:hover {
+            color: #18070a;
+            background: var(--gold);
+        }
+
+        .incident-action-button[data-close-incident-id]:hover {
+            color: #ffffff;
+            background: #a51d42;
+            border-color: #ff789c;
+        }
+
+        @media (max-width: 850px) {
+            .topbar {
+                align-items: flex-start;
+                flex-direction: column;
+                justify-content: center;
+                padding: 20px 0;
+            }
+
+            .topbar-actions {
+                width: 100%;
+                justify-content: flex-start;
+            }
+        }
+
+        @media (max-width: 560px) {
+            .topbar-actions {
+                gap: 7px;
+            }
+
+            .refresh-button,
+            .detect-button {
+                min-height: 36px;
+                padding: 8px 10px;
+                font-size: 10px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+<div class="app-shell">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+
+        <div class="brand">
+            <div class="brand-mark">H</div>
+            <div>
+                <h1>HONEYWATCH</h1>
+                <span>Security Monitoring</span>
+            </div>
+        </div>
+
+        <div class="system-status">
+            <span class="status-dot"></span>
+            <div>
+                <strong>System Operational</strong>
+                <small>Monitoring active</small>
+            </div>
+        </div>
+
+        <nav class="navigation" aria-label="Main navigation">
+
+            <p class="nav-label">MONITOR</p>
+
+            <button type="button" class="nav-item active" data-section="overview">
+                <span class="nav-icon">◉</span>
+                Overview
+            </button>
+
+            <button type="button" class="nav-item" data-section="activity">
+                <span class="nav-icon">≋</span>
+                Activity
+            </button>
+
+            <button type="button" class="nav-item" data-section="incidents">
+                <span class="nav-icon">!</span>
+                Incidents
+            </button>
+
+            <p class="nav-label">SYSTEM</p>
+
+            <button type="button" class="nav-item" data-section="services">
+                <span class="nav-icon">▣</span>
+                Services
+            </button>
+
+            <button type="button" class="nav-item" data-section="rules">
+                <span class="nav-icon">◇</span>
+                Detection Rules
+            </button>
+
+            <button type="button" class="nav-item" data-section="settings">
+                <span class="nav-icon">⚙</span>
+                Settings
+            </button>
+
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="version">HONEYWATCH v1.0</div>
+            <div class="environment">
+                <span></span>
+                LOCAL ENVIRONMENT
+            </div>
+        </div>
+
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="main-content">
+
+        <!-- TOP BAR -->
+        <header class="topbar">
+
+            <div class="topbar-title">
+                <div class="breadcrumb">
+                    Security Operations / <strong>Overview</strong>
+                </div>
+                <h2 id="page-title">Security Overview</h2>
+            </div>
+
+            <div class="topbar-actions">
+
+                <div class="last-updated">
+                    <span>LAST UPDATED</span>
+                    <strong id="last-updated">--:--:--</strong>
+                </div>
+
+                <button type="button" class="refresh-button" id="refresh-button">
+                    Refresh
+                </button>
+
+                <button type="button" class="detect-button" id="run-detection">
+                    Run Detection
+                </button>
+
+                <button type="button" class="detect-button" id="run-simulation">
+                    Run Simulation
+                </button>
+
+            </div>
+        </header>
+
+        <!-- OVERVIEW -->
+        <section id="overview" class="page-section active">
+
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">LIVE MONITORING</span>
+                    <h3>Threat intelligence at a glance</h3>
+                    <p>
+                        Monitor simulated honeypot activity, detected attacks,
+                        and current threat levels.
+                    </p>
+                </div>
+
+                <div class="live-indicator">
+                    <span></span>
+                    DEMO MONITORING
+                </div>
+            </div>
+
+            <!-- STATISTICS -->
+            <div class="stat-grid">
+
+                <article class="stat-card">
+                    <div class="stat-card-header">
+                        <span>Total Events</span>
+                        <div class="stat-icon burgundy">≋</div>
+                    </div>
+                    <div class="stat-value" id="total-events">0</div>
+                    <div class="stat-footer">Recorded system activity</div>
+                </article>
+
+                <article class="stat-card">
+                    <div class="stat-card-header">
+                        <span>Detected Incidents</span>
+                        <div class="stat-icon rose">!</div>
+                    </div>
+                    <div class="stat-value" id="total-incidents">0</div>
+                    <div class="stat-footer">Security events classified</div>
+                </article>
+
+                <article class="stat-card score-card">
+                    <div class="stat-card-header">
+                        <span>Average Threat Score</span>
+                        <div class="stat-icon gold">◆</div>
+                    </div>
+
+                    <div class="score-display">
+                        <div class="stat-value" id="average-score">0</div>
+                        <span class="score-max">/ 100</span>
+                    </div>
+
+                    <div class="score-bar">
+                        <div id="score-progress"></div>
+                    </div>
+                </article>
+
+                <article class="stat-card">
+                    <div class="stat-card-header">
+                        <span>System Status</span>
+                        <div class="stat-icon teal">✓</div>
+                    </div>
+
+                    <div class="status-large">
+                        <span class="status-dot"></span>
+                        <span class="system-status-label">ONLINE</span>
+                    </div>
+
+                    <div class="stat-footer">Backend connection status</div>
+                </article>
+
+            </div>
+
+            <!-- DASHBOARD PANELS -->
+            <div class="dashboard-grid">
+
+                <article class="panel attack-panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="eyebrow">CLASSIFICATION</span>
+                            <h3>Attack Distribution</h3>
+                        </div>
+                        <span class="panel-tag">CURRENT DATA</span>
+                    </div>
+
+                    <div id="attack-distribution" class="attack-chart">
+                        <div class="empty-state">
+                            <strong>No attack data yet</strong>
+                            <span>Generate simulated activity, then run detection.</span>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="panel threat-panel">
+                    <div class="panel-header">
+                        <div>
+                            <span class="eyebrow">THREAT LEVEL</span>
+                            <h3>Current Assessment</h3>
+                        </div>
+                    </div>
+
+                    <div id="threat-ring" class="threat-ring">
+                        <div class="ring-inner">
+                            <strong id="threat-score">0</strong>
+                            <span>AVG SCORE</span>
+                        </div>
+                    </div>
+
+                    <div class="threat-label" id="threat-label">
+                        No active threats
+                    </div>
+
+                    <p class="threat-description">
+                        Threat severity is calculated from classified incidents.
+                    </p>
+
+                    <div id="severity-distribution">
+                        <div class="empty-state">
+                            <span>No severity data yet.</span>
+                        </div>
+                    </div>
+                </article>
+
+            </div>
+
+            <!-- RECENT INCIDENTS -->
+            <article class="panel incidents-panel">
+
+                <div class="panel-header">
+                    <div>
+                        <span class="eyebrow">INCIDENT RESPONSE</span>
+                        <h3>Recent Incidents</h3>
+                    </div>
+
+                    <button
+                        type="button"
+                        class="text-button"
+                        data-section-link="incidents">
+                        View all →
+                    </button>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>SOURCE IP</th>
+                                <th>ATTACK TYPE</th>
+                                <th>SEVERITY</th>
+                                <th>THREAT SCORE</th>
+                                <th>START TIME</th>
+                                <th>STATUS</th>
+                                <th>ACTION</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="incident-table-body">
+                            <tr>
+                                <td colspan="8" class="table-empty">
+                                    Loading incidents...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+        </section>
+
+        <!-- ACTIVITY -->
+        <section id="activity" class="page-section">
+
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">EVENT STREAM</span>
+                    <h3>Activity Monitor</h3>
+                    <p>
+                        Events recorded by the HoneyWatch logger.
+                        Demo events are simulated data.
+                    </p>
+                </div>
+            </div>
+
+            <article class="panel">
+                <div class="panel-header">
+                    <div><h3>Recorded Events</h3></div>
+                    <span class="panel-tag">EVENT LOG</span>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>TIMESTAMP</th>
+                                <th>SOURCE IP</th>
+                                <th>SERVICE</th>
+                                <th>EVENT TYPE</th>
+                                <th>DETAILS</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="events-table-body">
+                            <tr>
+                                <td colspan="6" class="table-empty">
+                                    Loading activity...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+        </section>
+
+        <!-- INCIDENTS -->
+        <section id="incidents" class="page-section">
+
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">INCIDENT RESPONSE</span>
+                    <h3>Security Incidents</h3>
+                    <p>
+                        Detected and classified security activity.
+                        Investigate an incident for guidance or close it when reviewed.
+                    </p>
+                </div>
+            </div>
+
+            <article class="panel">
+
+                <div class="panel-header">
+                    <div><h3>All Incidents</h3></div>
+                    <span class="panel-tag">INCIDENT LOG</span>
+                </div>
+
+                <div class="table-wrapper">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>ID</th>
+                                <th>SOURCE IP</th>
+                                <th>START TIME</th>
+                                <th>ATTACK TYPE</th>
+                                <th>SEVERITY</th>
+                                <th>SCORE</th>
+                                <th>STATUS</th>
+                                <th>ACTION</th>
+                            </tr>
+                        </thead>
+
+                        <tbody id="all-incidents-body">
+                            <tr>
+                                <td colspan="8" class="table-empty">
+                                    Loading incidents...
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </article>
+
+        </section>
+
+        <!-- SERVICES -->
+        <section id="services" class="page-section">
+
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">HONEYPOT INFRASTRUCTURE</span>
+                    <h3>Monitored Services</h3>
+                    <p>Simulated services represented by this HoneyWatch demo.</p>
+                </div>
+            </div>
+
+            <div class="service-grid">
+
+                <article class="service-card">
+                    <div class="service-port">22</div>
+                    <div>
+                        <h4>SSH</h4>
+                        <span>Secure Shell</span>
+                    </div>
+                    <div class="service-status">SIMULATED</div>
+                </article>
+
+                <article class="service-card">
+                    <div class="service-port">80</div>
+                    <div>
+                        <h4>HTTP</h4>
+                        <span>Web Service</span>
+                    </div>
+                    <div class="service-status">SIMULATED</div>
+                </article>
+
+                <article class="service-card">
+                    <div class="service-port">443</div>
+                    <div>
+                        <h4>HTTPS</h4>
+                        <span>Secure Web</span>
+                    </div>
+                    <div class="service-status">SIMULATED</div>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- DETECTION RULES -->
+        <section id="rules" class="page-section">
+
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">DETECTION ENGINE</span>
+                    <h3>Detection Rules</h3>
+                    <p>Example rule thresholds used to explain the demo detection categories.</p>
+                </div>
+            </div>
+
+            <div class="rule-grid">
+
+                <article class="rule-card">
+                    <span class="rule-number">01</span>
+                    <div>
+                        <h4>Brute Force</h4>
+                        <p>Repeated failed SSH authentication attempts.</p>
+                    </div>
+                    <strong>≥ 5</strong>
+                </article>
+
+                <article class="rule-card">
+                    <span class="rule-number">02</span>
+                    <div>
+                        <h4>Port Scan</h4>
+                        <p>Probes against multiple network ports.</p>
+                    </div>
+                    <strong>≥ 4</strong>
+                </article>
+
+                <article class="rule-card">
+                    <span class="rule-number">03</span>
+                    <div>
+                        <h4>Suspicious Access</h4>
+                        <p>Suspicious commands following authentication.</p>
+                    </div>
+                    <strong>≥ 1</strong>
+                </article>
+
+                <article class="rule-card">
+                    <span class="rule-number">04</span>
+                    <div>
+                        <h4>Abnormal Traffic</h4>
+                        <p>Unusually frequent HTTP requests.</p>
+                    </div>
+                    <strong>≥ 8</strong>
+                </article>
+
+            </div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section id="settings" class="page-section">
+
+            <div class="section-heading">
+                <div>
+                    <span class="eyebrow">SYSTEM CONFIGURATION</span>
+                    <h3>Settings</h3>
+                    <p>HoneyWatch environment and appearance settings.</p>
+                </div>
+            </div>
+
+            <article class="panel settings-panel">
+
+                <div class="setting-row">
+                    <div>
+                        <strong>Detection Mode</strong>
+                        <span>Rule-based detection engine</span>
+                    </div>
+                    <span class="setting-value">RULE-BASED</span>
+                </div>
+
+                <div class="setting-row">
+                    <div>
+                        <strong>Database</strong>
+                        <span>SQLite local database (backend-reported status not checked here)</span>
+                    </div>
+                    <span class="setting-value">LOCAL</span>
+                </div>
+
+                <div class="setting-row">
+                    <div>
+                        <strong>API Service</strong>
+                        <span>FastAPI backend</span>
+                    </div>
+                    <span class="setting-value" id="api-status-value">CHECKING</span>
+                </div>
+
+                <div class="setting-row">
+                    <div>
+                        <strong>Environment</strong>
+                        <span>Configure a public API URL before hosted deployment</span>
+                    </div>
+                    <span class="setting-value">DEMO</span>
+                </div>
+
+                <div class="setting-row">
+                    <div>
+                        <strong>Appearance</strong>
+                        <span>Choose your HoneyWatch dashboard theme</span>
+                    </div>
+
+                    <div class="theme-options">
+                        <button type="button" class="theme-button active" data-theme="dark">
+                            🌙 Dark
+                        </button>
+
+                        <button type="button" class="theme-button" data-theme="light">
+                            ☀️ Light
+                        </button>
+                    </div>
+                </div>
+
+            </article>
+        </section>
+
+    </main>
+</div>
+
+<div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+<script src="script.js"></script>
+</body>
+</html>
